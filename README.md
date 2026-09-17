@@ -24,11 +24,14 @@ Task router
 ├─ .txt request → file reader tool
 ├─ .csv request → CSV analyzer tool
 ├─ .pdf request → PDF reader tool
+├─ research/career request → existing tool registry
+├─ planning request → planner layer
+├─ recurring task request → automation scheduler
 └─ general question → LLM response
 ↓
 Observation / structured result
 ↓
-Memory + final answer
+Memory + report generation + final answer
 ```
 
 ## Current stack
@@ -70,6 +73,20 @@ Memory + final answer
 - web_search: fetches current external information from the web for up-to-date queries
 - research_synthesis: combines multiple search results into a concise answer with preserved sources
 - career_intelligence: extracts job requirements and compares them with a user skill profile
+- rag_query: retrieves relevant local knowledge-base chunks
+- automation scheduler: validates recurring daily/weekly research and career tasks without coupling to the agent runtime
+
+## Phase 9: reports and automation
+
+BORO BHAI now includes a small report layer that writes structured Markdown files into the project `reports/` directory. Reports can describe research, job analysis, skill gaps, and source listings while preserving source metadata. The automation layer lives in `automation/scheduler.py` and is separated from agent logic, tool execution, and the CLI.
+
+This keeps the system modular:
+
+- agent handles routing and orchestration
+- tools handle deterministic actions
+- memory stores conversation context
+- reports capture structured output safely
+- automation schedules recurring tasks without embedding scheduling logic inside the agent
 
 ## How tool routing works
 
