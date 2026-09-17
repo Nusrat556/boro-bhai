@@ -1,0 +1,10 @@
+# Minimal project dependencies for the foundation stage.
+# We will add packages gradually as the agent needs them.
+
+# Example future packages:
+# ollama
+# pandas
+# python-dotenv
+# sqlite-utils
+# requests
+# pypdf
