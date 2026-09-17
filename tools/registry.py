@@ -6,6 +6,7 @@ from tools.calculator import calculate
 from tools.csv_analyzer import analyze_csv
 from tools.file_reader import read_text_file
 from tools.pdf_reader import read_pdf_text
+from tools.web_search import web_search
 
 
 class ToolRegistry:
@@ -17,6 +18,7 @@ class ToolRegistry:
             "text_file": read_text_file,
             "csv": analyze_csv,
             "pdf": read_pdf_text,
+            "web_search": web_search,
         }
 
     def register(self, name: str, func):

@@ -53,6 +53,7 @@ Memory + final answer
   - file_reader.py
   - csv_analyzer.py
   - pdf_reader.py
+  - web_search.py
   - result.py
 - memory/
   - database.py
@@ -66,6 +67,7 @@ Memory + final answer
 - text_file: reads approved `.txt` files from the `data/` directory
 - csv: analyzes CSV structure, missing values, and numeric columns
 - pdf: extracts text from approved `.pdf` files inside `data/`
+- web_search: fetches current external information from the web for up-to-date queries
 
 ## How tool routing works
 

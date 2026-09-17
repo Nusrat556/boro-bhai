@@ -39,6 +39,31 @@ def _extract_file_path(task: str, extension: str) -> str | None:
     return None
 
 
+def _extract_search_query(task: str) -> str:
+    """Extract a plain-language search query from a task prompt."""
+    cleaned = task.strip()
+    lowered = cleaned.lower()
+
+    for prefix in (
+        "search the web for ",
+        "search web for ",
+        "look up ",
+        "find latest ",
+        "find current ",
+        "latest on ",
+        "latest news about ",
+        "latest updates on ",
+        "what are the latest ",
+        "what are current ",
+        "current information on ",
+        "current news about ",
+    ):
+        if lowered.startswith(prefix):
+            return cleaned[len(prefix) :].strip()
+
+    return cleaned
+
+
 def route_task(task: str) -> str:
     """Route a request to the appropriate tool or the general LLM path."""
     if not task or not task.strip():
@@ -53,6 +78,8 @@ def route_task(task: str) -> str:
         return "csv"
     if _extract_file_path(task, ".pdf") or (("read" in lowered or "summarize" in lowered or "extract" in lowered) and "pdf" in lowered):
         return "pdf"
+    if any(keyword in lowered for keyword in ("latest", "current", "recent", "today", "news", "breaking", "search the web", "search web", "look up ", "live updates", "online")):
+        return "web_search"
     return "llm"
 
 
@@ -105,6 +132,10 @@ def _execute_registered_tool(route: str, task: str):
         file_path = _extract_file_path(task, ".pdf") or "sample.pdf"
         return tool(file_path)
 
+    if route == "web_search":
+        query = _extract_search_query(task)
+        return tool(query)
+
     raise KeyError(f"Tool '{route}' is not a registered executable tool.")
 
 
@@ -128,6 +159,23 @@ def run_agent(task: str) -> str:
             tool_result = ToolResult(False, "calculator", error=str(exc))
             final_response = f"[Agent]\n[Tool: Calculator]\nError: {tool_result.error}\n[Final Response]\nI could not evaluate that arithmetic expression safely."
             logging.error("Calculator error: %s", exc)
+            save_memory(task, final_response)
+            return final_response
+
+    if route == "web_search":
+        try:
+            result = _execute_registered_tool(route, task)
+            if result.success and isinstance(result.result, list):
+                summary = "\n".join(f"- {item['title']}: {item['url']}" for item in result.result)
+            else:
+                summary = result.error or "I could not find current information for that query."
+            final_response = f"[Agent]\n[Tool: Web Search]\n[Final Response]\n{summary}"
+            save_memory(task, final_response)
+            logging.info("Web search used for task: %s", task)
+            return final_response
+        except (KeyError, ValueError, TypeError) as exc:
+            final_response = f"[Agent]\n[Tool: Web Search]\nError: {exc}\n[Final Response]\nI could not retrieve current information safely."
+            logging.error("Web search error: %s", exc)
             save_memory(task, final_response)
             return final_response
 
