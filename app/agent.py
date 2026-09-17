@@ -57,6 +57,9 @@ def _extract_search_query(task: str) -> str:
         "what are current ",
         "current information on ",
         "current news about ",
+        "research ",
+        "research the ",
+        "research current ",
     ):
         if lowered.startswith(prefix):
             return cleaned[len(prefix) :].strip()
@@ -78,6 +81,10 @@ def route_task(task: str) -> str:
         return "csv"
     if _extract_file_path(task, ".pdf") or (("read" in lowered or "summarize" in lowered or "extract" in lowered) and "pdf" in lowered):
         return "pdf"
+    if any(keyword in lowered for keyword in ("job requirements", "job description", "career research", "skills gap", "match my skills", "job title", "current job requirements", "role requirements")):
+        return "career_intelligence"
+    if any(keyword in lowered for keyword in ("research ", "research the ", "find the latest", "find current")):
+        return "research_synthesis"
     if any(keyword in lowered for keyword in ("latest", "current", "recent", "today", "news", "breaking", "search the web", "search web", "look up ", "live updates", "online")):
         return "web_search"
     return "llm"
@@ -136,6 +143,13 @@ def _execute_registered_tool(route: str, task: str):
         query = _extract_search_query(task)
         return tool(query)
 
+    if route == "research_synthesis":
+        query = _extract_search_query(task)
+        return tool(query)
+
+    if route == "career_intelligence":
+        return tool(task)
+
     raise KeyError(f"Tool '{route}' is not a registered executable tool.")
 
 
@@ -176,6 +190,44 @@ def run_agent(task: str) -> str:
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: Web Search]\nError: {exc}\n[Final Response]\nI could not retrieve current information safely."
             logging.error("Web search error: %s", exc)
+            save_memory(task, final_response)
+            return final_response
+
+    if route == "research_synthesis":
+        try:
+            query = _extract_search_query(task)
+            result = _execute_registered_tool(route, query)
+            if result.success:
+                answer = result.result.get("answer", "I could not synthesize a reliable answer.")
+                sources = result.result.get("sources", [])
+                formatted_sources = "\n".join(f"- {source['title']}: {source['url']}" for source in sources)
+                final_response = f"[Agent]\n[Tool: Research Synthesis]\n[Final Response]\n{answer}\n\nSources:\n{formatted_sources}"
+            else:
+                final_response = f"[Agent]\n[Tool: Research Synthesis]\nError: {result.error}\n[Final Response]\nI could not synthesize current information reliably."
+            save_memory(task, final_response)
+            logging.info("Research synthesis used for task: %s", task)
+            return final_response
+        except (KeyError, ValueError, TypeError) as exc:
+            final_response = f"[Agent]\n[Tool: Research Synthesis]\nError: {exc}\n[Final Response]\nI could not synthesize current information reliably."
+            logging.error("Research synthesis error: %s", exc)
+            save_memory(task, final_response)
+            return final_response
+
+    if route == "career_intelligence":
+        try:
+            result = _execute_registered_tool(route, task)
+            if result.success:
+                payload = result.result
+                formatted = payload if isinstance(payload, str) else str(payload)
+                final_response = f"[Agent]\n[Tool: Career Intelligence]\n[Final Response]\n{formatted}"
+            else:
+                final_response = f"[Agent]\n[Tool: Career Intelligence]\nError: {result.error}\n[Final Response]\nI could not analyze that career request."
+            save_memory(task, final_response)
+            logging.info("Career intelligence used for task: %s", task)
+            return final_response
+        except (KeyError, ValueError, TypeError) as exc:
+            final_response = f"[Agent]\n[Tool: Career Intelligence]\nError: {exc}\n[Final Response]\nI could not analyze that career request."
+            logging.error("Career intelligence error: %s", exc)
             save_memory(task, final_response)
             return final_response
 

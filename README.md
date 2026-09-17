@@ -68,6 +68,8 @@ Memory + final answer
 - csv: analyzes CSV structure, missing values, and numeric columns
 - pdf: extracts text from approved `.pdf` files inside `data/`
 - web_search: fetches current external information from the web for up-to-date queries
+- research_synthesis: combines multiple search results into a concise answer with preserved sources
+- career_intelligence: extracts job requirements and compares them with a user skill profile
 
 ## How tool routing works
 
