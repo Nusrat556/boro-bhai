@@ -1,14 +1,16 @@
-"""Simple local test for the Ollama connection."""
+"""Simple entry point for demonstrating the BORO BHAI agent loop."""
 
-from app.llm import generate_response
+from app.agent import run_agent
 
 
 def main() -> None:
-    prompt = "Explain what an AI agent is in two sentences."
-    print("Prompt:")
-    print(prompt)
-    print("\nResponse from Qwen 2.5 3B:")
-    print(generate_response(prompt))
+    task = "Explain why learning Git is useful for a software developer."
+    print("User task:")
+    print(task)
+    print("\nAgent: analyzing task...")
+    print("LLM: generating answer...")
+    print("\nFinal response:")
+    print(run_agent(task))
 
 
 if __name__ == "__main__":
