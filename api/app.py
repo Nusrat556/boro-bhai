@@ -18,6 +18,7 @@ from api.service import (
     handle_upload,
     list_reports,
 )
+from config import settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = PROJECT_ROOT / "web"
@@ -29,7 +30,15 @@ def create_app() -> Flask:
         template_folder=str(WEB_ROOT / "templates"),
         static_folder=str(WEB_ROOT / "static"),
     )
-    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = settings.api_max_content_length
+
+    @app.errorhandler(413)
+    def request_too_large(_error):
+        return error_response("Request payload is too large.", status=413, code="payload_too_large")
+
+    @app.errorhandler(500)
+    def internal_error(_error):
+        return error_response("Internal server error.", status=500, code="internal_error")
 
     @app.get("/")
     def index() -> str:

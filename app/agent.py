@@ -12,6 +12,19 @@ from tools.registry import build_registry
 from tools.result import ToolResult
 
 configure_logging()
+MAX_PLAN_STEPS = 4
+
+
+def _sanitize_task(task: str) -> str:
+    """Normalize user text while rejecting empty or abusive input."""
+    if not isinstance(task, str):
+        raise ValueError("Task must be a string.")
+    cleaned = re.sub(r"\s+", " ", task).strip()
+    if not cleaned:
+        raise ValueError("Task cannot be empty.")
+    if len(cleaned) > 4000:
+        raise ValueError("Task is too long.")
+    return cleaned
 
 
 def extract_expression(task: str) -> str | None:
@@ -97,8 +110,9 @@ def route_task(task: str) -> str:
 
 
 def _build_memory_context(task: str = "", db_path: str = DEFAULT_DB_PATH) -> str:
-    if task:
-        recent_memories = get_relevant_context(task, limit=3, db_path=db_path)
+    sanitized_task = _sanitize_task(task) if task else ""
+    if sanitized_task:
+        recent_memories = get_relevant_context(sanitized_task, limit=3, db_path=db_path)
     else:
         recent_memories = get_recent_memories(limit=3, db_path=db_path)
 
@@ -124,9 +138,7 @@ def _safe_llm_response(task: str, context: str = "") -> str:
 
 def create_plan(task: str) -> dict[str, Any]:
     """Create a simple multi-step plan for a complex task."""
-    cleaned = task.strip()
-    if not cleaned:
-        raise ValueError("Task cannot be empty.")
+    cleaned = _sanitize_task(task)
 
     lowered = cleaned.lower()
     steps = []
@@ -168,6 +180,9 @@ def create_plan(task: str) -> dict[str, Any]:
         "prompt": f"Summarize the findings for: {cleaned}",
     })
 
+    if len(steps) > MAX_PLAN_STEPS:
+        steps = steps[:MAX_PLAN_STEPS]
+
     return {
         "goal": cleaned,
         "steps": steps,
@@ -179,9 +194,10 @@ def execute_plan(plan: dict[str, Any]) -> dict[str, Any]:
     if not plan or "steps" not in plan or not plan["steps"]:
         return {"success": False, "steps": [], "error": "No valid plan was provided."}
 
+    steps = list(plan["steps"][:MAX_PLAN_STEPS])
     outputs: list[dict[str, Any]] = []
     try:
-        for step in plan["steps"]:
+        for step in steps:
             step_name = step.get("name", "Unnamed step")
             step_type = step.get("type", "analysis")
             prompt = step.get("prompt", plan.get("goal", ""))
@@ -248,11 +264,10 @@ def _execute_registered_tool(route: str, task: str):
 
 def run_agent(task: str) -> str:
     """Run a minimal agent loop with routing and safe tool usage."""
-    if not task or not task.strip():
-        raise ValueError("Task cannot be empty.")
+    cleaned_task = _sanitize_task(task)
 
-    memory_context = _build_memory_context(task)
-    route = route_task(task)
+    memory_context = _build_memory_context(cleaned_task)
+    route = route_task(cleaned_task)
 
     if route == "calculator":
         try:

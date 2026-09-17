@@ -165,6 +165,25 @@ python -m unittest
 - no arbitrary shell execution is allowed
 - no `eval()`, `exec()`, `subprocess`, or `os.system()` usage is permitted
 - sensitive data is not logged
+- API payloads and prompt values are sanitized before execution
+- planner execution is bounded to a safe maximum number of steps
+- configuration is environment-driven and validated at startup
+
+## Production settings
+
+The project now reads runtime values from environment variables and validates them when the app starts. Start from `.env.example` and copy it to a local `.env` during deployment or local tuning.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Minimal deployment entry point:
+
+```powershell
+python wsgi.py
+```
+
+This keeps the application lightweight and keeps business logic in the Python project instead of moving it into a large framework.
 
 ## Notes
 
