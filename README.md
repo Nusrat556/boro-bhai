@@ -50,6 +50,11 @@ Memory + report generation + final answer
   - agent.py
   - main.py
   - logger_config.py
+- api/
+  - app.py
+  - service.py
+- automation/
+  - scheduler.py
 - tools/
   - calculator.py
   - registry.py
@@ -60,6 +65,9 @@ Memory + report generation + final answer
   - result.py
 - memory/
   - database.py
+- web/
+  - templates/
+  - static/
 - tests/
 - data/
 - reports/
@@ -104,11 +112,33 @@ This keeps the logic simple, explainable, and testable without introducing unnec
 
 ## How to run BORO BHAI
 
+### CLI mode
+
 ```powershell
 cd "C:\Users\HP\jonayed\A ai agent named BORO BHAI"
 .\.venv\Scripts\Activate.ps1
 python -m app.main
 ```
+
+### Web UI mode
+
+```powershell
+cd "C:\Users\HP\jonayed\A ai agent named BORO BHAI"
+.\.venv\Scripts\Activate.ps1
+python -m api.app
+```
+
+Then open: http://127.0.0.1:5000
+
+The web UI exposes the following sections:
+
+- chat with the agent
+- conversation history
+- document upload for `.txt`, `.csv`, and `.pdf` files
+- research queries with source URLs
+- job description analysis
+- skill-gap analysis
+- report listing and viewing
 
 Example prompts:
 
@@ -117,13 +147,14 @@ Example prompts:
 - `Analyze data/sample.csv for missing values.`
 - `Read data/sample.pdf and summarize the contents.`
 - `What is the capital of France?`
+- `Create a plan for researching AI agents and summarizing the results.`
 
 ## How to run tests
 
 ```powershell
 cd "C:\Users\HP\jonayed\A ai agent named BORO BHAI"
 .\.venv\Scripts\Activate.ps1
-python -m unittest discover -s tests -v
+python -m unittest
 ```
 
 ## Security and safety

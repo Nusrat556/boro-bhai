@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BORO BHAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local AI Agent</p>
+          <h1>BORO BHAI</h1>
+        </div>
+        <button id="clear-history" class="secondary-button">Clear history</button>
+      </header>
+
+      <main class="layout">
+        <section class="panel chat-panel">
+          <h2>Chat</h2>
+          <div id="chat-output" class="chat-output" aria-live="polite"></div>
+          <form id="chat-form" class="chat-form">
+            <input id="chat-input" type="text" placeholder="Ask BORO BHAI something..." autocomplete="off" />
+            <button type="submit">Send</button>
+          </form>
+          <div id="chat-status" class="status" aria-live="polite"></div>
+        </section>
+
+        <aside class="sidebar">
+          <section class="panel">
+            <h2>Research</h2>
+            <form id="research-form" class="stack-form">
+              <input id="research-query" type="text" placeholder="Research topic" />
+              <button type="submit">Run research</button>
+            </form>
+            <div id="research-output" class="result-box"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Document upload</h2>
+            <form id="upload-form" class="stack-form">
+              <input id="upload-file" type="file" accept=".txt,.csv,.pdf" />
+              <button type="submit">Upload</button>
+            </form>
+            <div id="upload-output" class="result-box"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Career analysis</h2>
+            <form id="job-form" class="stack-form">
+              <textarea id="job-text" rows="4" placeholder="Paste a job description..."></textarea>
+              <input id="user-skills" type="text" placeholder="Your skills (comma separated)" />
+              <button type="submit">Analyze job</button>
+            </form>
+            <div id="job-output" class="result-box"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Skill gap</h2>
+            <form id="skill-gap-form" class="stack-form">
+              <textarea id="skill-gap-text" rows="4" placeholder="Paste the role description..."></textarea>
+              <input id="skill-gap-skills" type="text" placeholder="Current skills (comma separated)" />
+              <button type="submit">Check gaps</button>
+            </form>
+            <div id="skill-gap-output" class="result-box"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Reports</h2>
+            <button id="load-reports" class="secondary-button full-width">Load reports</button>
+            <div id="reports-output" class="result-box"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
