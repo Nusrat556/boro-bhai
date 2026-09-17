@@ -1,16 +1,20 @@
-"""Simple entry point for demonstrating the BORO BHAI agent loop."""
+"""Simple interactive CLI for BORO BHAI."""
 
 from app.agent import run_agent
 
 
 def main() -> None:
-    task = "Explain why learning Git is useful for a software developer."
-    print("User task:")
-    print(task)
-    print("\nAgent: analyzing task...")
-    print("LLM: generating answer...")
-    print("\nFinal response:")
-    print(run_agent(task))
+    print("BORO BHAI ready. Type 'exit' or 'quit' to end.")
+    while True:
+        user_input = input("\nYou: ").strip()
+        if user_input.lower() in {"exit", "quit"}:
+            print("BORO BHAI: Goodbye!")
+            break
+        if not user_input:
+            print("BORO BHAI: Please enter a task.")
+            continue
+        print("\nBORO BHAI:")
+        print(run_agent(user_input))
 
 
 if __name__ == "__main__":

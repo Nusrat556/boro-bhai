@@ -31,3 +31,7 @@ reports/*.json
 reports/*.txt
 reports/*.md
 !README.md
+
+# SQLite database files
+*.db
+data/*.db
