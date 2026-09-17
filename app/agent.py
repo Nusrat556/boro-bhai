@@ -6,9 +6,6 @@ import re
 from app.llm import generate_response
 from app.logger_config import configure_logging
 from memory.database import get_recent_memories, save_memory
-from tools.csv_analyzer import analyze_csv
-from tools.file_reader import read_text_file
-from tools.pdf_reader import read_pdf_text
 from tools.registry import build_registry
 from tools.result import ToolResult
 
@@ -33,16 +30,28 @@ def is_calculation_request(task: str) -> bool:
     return extract_expression(task) is not None
 
 
+def _extract_file_path(task: str, extension: str) -> str | None:
+    """Extract a path ending in the given extension from a task string."""
+    pattern = rf"[A-Za-z0-9_./\\-]+\{extension}"
+    match = re.search(pattern, task, re.IGNORECASE)
+    if match:
+        return match.group(0)
+    return None
+
+
 def route_task(task: str) -> str:
     """Route a request to the appropriate tool or the general LLM path."""
+    if not task or not task.strip():
+        raise ValueError("Task cannot be empty.")
+
     lowered = task.lower()
     if is_calculation_request(task):
         return "calculator"
-    if ("read" in lowered or "summarize" in lowered) and ".txt" in lowered:
+    if _extract_file_path(task, ".txt") or (("read" in lowered or "summarize" in lowered or "open" in lowered) and ".txt" in lowered):
         return "text_file"
-    if "csv" in lowered or "analyze" in lowered and ".csv" in lowered:
+    if _extract_file_path(task, ".csv") or ("csv" in lowered and ("analyze" in lowered or "inspect" in lowered or "summarize" in lowered or "read" in lowered)):
         return "csv"
-    if "pdf" in lowered or ".pdf" in lowered:
+    if _extract_file_path(task, ".pdf") or (("read" in lowered or "summarize" in lowered or "extract" in lowered) and "pdf" in lowered):
         return "pdf"
     return "llm"
 
@@ -66,6 +75,32 @@ def _safe_llm_response(task: str, context: str = "") -> str:
     return generate_response(prompt).strip()
 
 
+def _execute_registered_tool(route: str, task: str):
+    """Execute a tool selected from the tool registry for the provided task."""
+    registry = build_registry()
+    tool = registry.get(route)
+
+    if route == "calculator":
+        expression = extract_expression(task)
+        if expression is None:
+            raise ValueError("No arithmetic expression found.")
+        return tool(expression)
+
+    if route == "text_file":
+        file_path = _extract_file_path(task, ".txt") or "example.txt"
+        return tool(file_path)
+
+    if route == "csv":
+        file_path = _extract_file_path(task, ".csv") or "sample.csv"
+        return tool(file_path)
+
+    if route == "pdf":
+        file_path = _extract_file_path(task, ".pdf") or "sample.pdf"
+        return tool(file_path)
+
+    raise KeyError(f"Tool '{route}' is not a registered executable tool.")
+
+
 def run_agent(task: str) -> str:
     """Run a minimal agent loop with routing and safe tool usage."""
     if not task or not task.strip():
@@ -76,10 +111,7 @@ def run_agent(task: str) -> str:
 
     if route == "calculator":
         try:
-            expression = extract_expression(task)
-            registry = build_registry()
-            calculator = registry.get("calculator")
-            result = calculator(expression)
+            result = _execute_registered_tool(route, task)
             tool_result = ToolResult(True, "calculator", result=result)
             final_response = f"[Agent]\n[Tool: Calculator]\nResult: {result}\n[Final Response]\n{result}"
             logging.info("Calculator used for task: %s", task)
@@ -92,60 +124,27 @@ def run_agent(task: str) -> str:
             save_memory(task, final_response)
             return final_response
 
-    if route == "text_file":
+    if route in {"text_file", "csv", "pdf"}:
         try:
-            filename = re.search(r"[A-Za-z0-9_./\\-]+\.txt", task)
-            file_name = filename.group(0) if filename else "example.txt"
-            content = read_text_file(file_name)
-            summary = _safe_llm_response(
-                f"Summarize this text file content in a clear way.\n\n{content}",
-                context=memory_context,
-            )
-            final_response = f"[Agent]\n[Tool: File Reader]\n[Final Response]\n{summary}"
+            tool_name = {
+                "text_file": "File Reader",
+                "csv": "CSV Analyzer",
+                "pdf": "PDF Reader",
+            }[route]
+            result = _execute_registered_tool(route, task)
+            if route == "text_file":
+                summary = _safe_llm_response(f"Summarize this text file content in a clear way.\n\n{result}", context=memory_context)
+            elif route == "csv":
+                summary = _safe_llm_response(f"Explain this CSV dataset in simple language.\n\n{result}", context=memory_context)
+            else:
+                summary = _safe_llm_response(f"Summarize this PDF content in simple language.\n\n{result}", context=memory_context)
+            final_response = f"[Agent]\n[Tool: {tool_name}]\n[Final Response]\n{summary}"
             save_memory(task, final_response)
-            logging.info("Text file read for: %s", file_name)
+            logging.info("%s used for task: %s", tool_name, task)
             return final_response
-        except (FileNotFoundError, ValueError) as exc:
-            final_response = f"[Agent]\n[Tool: File Reader]\nError: {exc}\n[Final Response]\nI could not read that text file safely."
-            logging.error("File reader error: %s", exc)
-            save_memory(task, final_response)
-            return final_response
-
-    if route == "csv":
-        try:
-            filename = re.search(r"[A-Za-z0-9_./\\-]+\.csv", task)
-            file_name = filename.group(0) if filename else "sample.csv"
-            data = analyze_csv(file_name)
-            summary = _safe_llm_response(
-                f"Explain this CSV dataset in simple language.\n\n{data}",
-                context=memory_context,
-            )
-            final_response = f"[Agent]\n[Tool: CSV Analyzer]\n[Final Response]\n{summary}"
-            save_memory(task, final_response)
-            logging.info("CSV analyzed for: %s", file_name)
-            return final_response
-        except (FileNotFoundError, ValueError) as exc:
-            final_response = f"[Agent]\n[Tool: CSV Analyzer]\nError: {exc}\n[Final Response]\nI could not analyze that CSV file safely."
-            logging.error("CSV analyzer error: %s", exc)
-            save_memory(task, final_response)
-            return final_response
-
-    if route == "pdf":
-        try:
-            filename = re.search(r"[A-Za-z0-9_./\\-]+\.pdf", task)
-            file_name = filename.group(0) if filename else "sample.pdf"
-            text = read_pdf_text(file_name)
-            summary = _safe_llm_response(
-                f"Summarize this PDF content in simple language.\n\n{text}",
-                context=memory_context,
-            )
-            final_response = f"[Agent]\n[Tool: PDF Reader]\n[Final Response]\n{summary}"
-            save_memory(task, final_response)
-            logging.info("PDF read for: %s", file_name)
-            return final_response
-        except (FileNotFoundError, ValueError) as exc:
-            final_response = f"[Agent]\n[Tool: PDF Reader]\nError: {exc}\n[Final Response]\nI could not read that PDF file safely."
-            logging.error("PDF reader error: %s", exc)
+        except (FileNotFoundError, ValueError, KeyError) as exc:
+            final_response = f"[Agent]\n[Tool: {tool_name}]\nError: {exc}\n[Final Response]\nI could not process that file safely."
+            logging.error("Tool execution error for %s: %s", route, exc)
             save_memory(task, final_response)
             return final_response
 

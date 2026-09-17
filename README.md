@@ -1,6 +1,6 @@
 # BORO BHAI
 
-BORO BHAI is a personal AI agent project built progressively in Python with a local Ollama model.
+BORO BHAI is a local, explainable AI agent built in Python. It uses a local Ollama model, a lightweight router, and a small set of deterministic tools instead of depending on a large framework too early.
 
 ## Project goals
 
@@ -15,13 +15,20 @@ BORO BHAI is a personal AI agent project built progressively in Python with a lo
 ```text
 User
 ↓
-Agent Router
+Interface / CLI
 ↓
-LLM or Tool
+Agent orchestrator
 ↓
-Observation/result
+Task router
+├─ arithmetic request → calculator tool
+├─ .txt request → file reader tool
+├─ .csv request → CSV analyzer tool
+├─ .pdf request → PDF reader tool
+└─ general question → LLM response
 ↓
-Final response
+Observation / structured result
+↓
+Memory + final answer
 ```
 
 ## Current stack
@@ -39,6 +46,7 @@ Final response
   - llm.py
   - agent.py
   - main.py
+  - logger_config.py
 - tools/
   - calculator.py
   - registry.py
@@ -52,7 +60,28 @@ Final response
 - data/
 - reports/
 
-## How to run
+## Available tools
+
+- calculator: safe arithmetic evaluation for numeric expressions
+- text_file: reads approved `.txt` files from the `data/` directory
+- csv: analyzes CSV structure, missing values, and numeric columns
+- pdf: extracts text from approved `.pdf` files inside `data/`
+
+## How tool routing works
+
+The agent uses a deterministic routing layer in `app/agent.py`:
+
+1. Validate that the task is not empty.
+2. Detect whether the prompt looks like a calculation.
+3. Detect whether the prompt includes a supported file type such as `.txt`, `.csv`, or `.pdf`.
+4. Route to the matching tool name.
+5. Resolve the requested tool from the registry in `tools/registry.py`.
+6. Execute the tool, capture the structured result, and use it to generate the final response.
+7. Fallback to the LLM-only path for general conversational prompts.
+
+This keeps the logic simple, explainable, and testable without introducing unnecessary framework abstractions.
+
+## How to run BORO BHAI
 
 ```powershell
 cd "C:\Users\HP\jonayed\A ai agent named BORO BHAI"
@@ -60,12 +89,21 @@ cd "C:\Users\HP\jonayed\A ai agent named BORO BHAI"
 python -m app.main
 ```
 
-## Notes
+Example prompts:
 
-- The agent is intentionally simple and modular.
-- We do not rely on heavy frameworks yet.
-- The design separates LLM communication from agent logic.
-- Tool access is kept narrow and explicit.
+- `What is 12 * 7?`
+- `Read data/example.txt and summarize it.`
+- `Analyze data/sample.csv for missing values.`
+- `Read data/sample.pdf and summarize the contents.`
+- `What is the capital of France?`
+
+## How to run tests
+
+```powershell
+cd "C:\Users\HP\jonayed\A ai agent named BORO BHAI"
+.\.venv\Scripts\Activate.ps1
+python -m unittest discover -s tests -v
+```
 
 ## Security and safety
 
@@ -73,3 +111,11 @@ python -m app.main
 - file access is restricted to the approved `data/` directory
 - path traversal is blocked
 - no arbitrary shell execution is allowed
+- no `eval()`, `exec()`, `subprocess`, or `os.system()` usage is permitted
+- sensitive data is not logged
+
+## Notes
+
+- The project intentionally stays modular and incremental.
+- We do not rely on heavy frameworks yet.
+- The design keeps LLM communication separate from agent logic and tool execution.
