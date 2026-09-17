@@ -5,7 +5,7 @@ import re
 
 from app.llm import generate_response
 from app.logger_config import configure_logging
-from memory.database import get_recent_memories, save_memory
+from memory.database import DEFAULT_DB_PATH, get_recent_memories, get_relevant_context, save_memory
 from tools.registry import build_registry
 from tools.result import ToolResult
 
@@ -56,22 +56,29 @@ def route_task(task: str) -> str:
     return "llm"
 
 
-def _build_memory_context() -> str:
-    recent_memories = get_recent_memories(limit=3)
+def _build_memory_context(task: str = "", db_path: str = DEFAULT_DB_PATH) -> str:
+    if task:
+        recent_memories = get_relevant_context(task, limit=3, db_path=db_path)
+    else:
+        recent_memories = get_recent_memories(limit=3, db_path=db_path)
+
     if not recent_memories:
         return ""
+
     entries = []
     for entry in recent_memories:
         entries.append(f"- User: {entry['user_input']}\n- Assistant: {entry['agent_response']}")
-    return "\nRecent memory:\n" + "\n".join(entries)
+    return "\nRelevant conversation context:\n" + "\n".join(entries)
 
 
 def _safe_llm_response(task: str, context: str = "") -> str:
     prompt = (
         "You are BORO BHAI, a helpful AI assistant. "
         "Your task is to provide a concise and useful answer to the user request. "
-        f"User request: {task}{context}"
+        f"User request: {task}"
     )
+    if context:
+        prompt = f"{prompt}\n\nConversation context:\n{context}"
     return generate_response(prompt).strip()
 
 
@@ -106,7 +113,7 @@ def run_agent(task: str) -> str:
     if not task or not task.strip():
         raise ValueError("Task cannot be empty.")
 
-    memory_context = _build_memory_context()
+    memory_context = _build_memory_context(task)
     route = route_task(task)
 
     if route == "calculator":
