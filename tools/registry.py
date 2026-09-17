@@ -7,6 +7,7 @@ from tools.calculator import calculate
 from tools.csv_analyzer import analyze_csv
 from tools.file_reader import read_text_file
 from tools.pdf_reader import read_pdf_text
+from tools.rag_tool import rag_query
 from tools.research_synthesis import research_and_synthesize
 from tools.web_search import web_search
 
@@ -23,6 +24,7 @@ class ToolRegistry:
             "web_search": web_search,
             "research_synthesis": research_and_synthesize,
             "career_intelligence": career_intelligence,
+            "rag_query": rag_query,
         }
 
     def register(self, name: str, func):

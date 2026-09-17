@@ -2,10 +2,12 @@
 
 import logging
 import re
+from typing import Any
 
 from app.llm import generate_response
 from app.logger_config import configure_logging
 from memory.database import DEFAULT_DB_PATH, get_recent_memories, get_relevant_context, save_memory
+from tools.rag_tool import rag_query
 from tools.registry import build_registry
 from tools.result import ToolResult
 
@@ -73,6 +75,8 @@ def route_task(task: str) -> str:
         raise ValueError("Task cannot be empty.")
 
     lowered = task.lower()
+    if any(keyword in lowered for keyword in ("plan ", "planner", "step-by-step", "roadmap", "workflow", "break this down", "multi-step", "research plan", "execution plan")):
+        return "planner"
     if is_calculation_request(task):
         return "calculator"
     if _extract_file_path(task, ".txt") or (("read" in lowered or "summarize" in lowered or "open" in lowered) and ".txt" in lowered):
@@ -87,6 +91,8 @@ def route_task(task: str) -> str:
         return "research_synthesis"
     if any(keyword in lowered for keyword in ("latest", "current", "recent", "today", "news", "breaking", "search the web", "search web", "look up ", "live updates", "online")):
         return "web_search"
+    if any(keyword in lowered for keyword in ("knowledge base", "memory", "what do you remember", "relevant context", "using our notes", "from the docs")):
+        return "rag_query"
     return "llm"
 
 
@@ -114,6 +120,90 @@ def _safe_llm_response(task: str, context: str = "") -> str:
     if context:
         prompt = f"{prompt}\n\nConversation context:\n{context}"
     return generate_response(prompt).strip()
+
+
+def create_plan(task: str) -> dict[str, Any]:
+    """Create a simple multi-step plan for a complex task."""
+    cleaned = task.strip()
+    if not cleaned:
+        raise ValueError("Task cannot be empty.")
+
+    lowered = cleaned.lower()
+    steps = []
+
+    if "research" in lowered or "find" in lowered or "latest" in lowered:
+        steps.append({
+            "step": 1,
+            "name": "Gather evidence",
+            "type": "research",
+            "prompt": f"Research the topic: {cleaned}",
+        })
+    else:
+        steps.append({
+            "step": 1,
+            "name": "Clarify goal",
+            "type": "analysis",
+            "prompt": cleaned,
+        })
+
+    if "job" in lowered or "career" in lowered or "skills" in lowered:
+        steps.append({
+            "step": 2,
+            "name": "Assess requirements",
+            "type": "career",
+            "prompt": cleaned,
+        })
+    else:
+        steps.append({
+            "step": 2,
+            "name": "Check relevant context",
+            "type": "rag",
+            "prompt": cleaned,
+        })
+
+    steps.append({
+        "step": len(steps) + 1,
+        "name": "Synthesize answer",
+        "type": "synthesis",
+        "prompt": f"Summarize the findings for: {cleaned}",
+    })
+
+    return {
+        "goal": cleaned,
+        "steps": steps,
+    }
+
+
+def execute_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    """Execute a previously created plan and return intermediate outputs."""
+    if not plan or "steps" not in plan or not plan["steps"]:
+        return {"success": False, "steps": [], "error": "No valid plan was provided."}
+
+    outputs: list[dict[str, Any]] = []
+    try:
+        for step in plan["steps"]:
+            step_name = step.get("name", "Unnamed step")
+            step_type = step.get("type", "analysis")
+            prompt = step.get("prompt", plan.get("goal", ""))
+
+            if step_type == "research":
+                result = _execute_registered_tool("research_synthesis", prompt)
+            elif step_type == "rag":
+                result = rag_query(prompt, top_k=3)
+            elif step_type == "career":
+                result = _execute_registered_tool("career_intelligence", prompt)
+            else:
+                result = {"summary": f"Completed step: {step_name}"}
+
+            outputs.append({
+                "step": step.get("step", len(outputs) + 1),
+                "name": step_name,
+                "status": "completed",
+                "output": result,
+            })
+        return {"success": True, "goal": plan.get("goal", ""), "steps": outputs}
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        return {"success": False, "steps": outputs, "error": str(exc)}
 
 
 def _execute_registered_tool(route: str, task: str):
@@ -148,6 +238,9 @@ def _execute_registered_tool(route: str, task: str):
         return tool(query)
 
     if route == "career_intelligence":
+        return tool(task)
+
+    if route == "rag_query":
         return tool(task)
 
     raise KeyError(f"Tool '{route}' is not a registered executable tool.")
@@ -193,6 +286,24 @@ def run_agent(task: str) -> str:
             save_memory(task, final_response)
             return final_response
 
+    if route == "planner":
+        try:
+            plan = create_plan(task)
+            execution = execute_plan(plan)
+            if execution["success"]:
+                summary = "\n".join(f"{entry['step']}. {entry['name']}: {entry['status']}" for entry in execution["steps"])
+                final_response = f"[Agent]\n[Tool: Planner]\n[Final Response]\nPlan created:\n{summary}"
+            else:
+                final_response = f"[Agent]\n[Tool: Planner]\nError: {execution.get('error', 'Plan failed')}\n[Final Response]\nI could not create a working plan for that request."
+            save_memory(task, final_response)
+            logging.info("Planner used for task: %s", task)
+            return final_response
+        except (KeyError, ValueError, TypeError) as exc:
+            final_response = f"[Agent]\n[Tool: Planner]\nError: {exc}\n[Final Response]\nI could not create a working plan for that request."
+            logging.error("Planner error: %s", exc)
+            save_memory(task, final_response)
+            return final_response
+
     if route == "research_synthesis":
         try:
             query = _extract_search_query(task)
@@ -210,6 +321,23 @@ def run_agent(task: str) -> str:
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: Research Synthesis]\nError: {exc}\n[Final Response]\nI could not synthesize current information reliably."
             logging.error("Research synthesis error: %s", exc)
+            save_memory(task, final_response)
+            return final_response
+
+    if route == "rag_query":
+        try:
+            result = _execute_registered_tool(route, task)
+            if result.success:
+                context = result.result.get("context", "")
+                final_response = f"[Agent]\n[Tool: RAG Query]\n[Final Response]\n{context or 'I found relevant knowledge base entries.'}"
+            else:
+                final_response = f"[Agent]\n[Tool: RAG Query]\nError: {result.error}\n[Final Response]\nI could not retrieve relevant knowledge from the local index."
+            save_memory(task, final_response)
+            logging.info("RAG query used for task: %s", task)
+            return final_response
+        except (KeyError, ValueError, TypeError) as exc:
+            final_response = f"[Agent]\n[Tool: RAG Query]\nError: {exc}\n[Final Response]\nI could not retrieve relevant knowledge from the local index."
+            logging.error("RAG query error: %s", exc)
             save_memory(task, final_response)
             return final_response
 
