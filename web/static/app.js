@@ -7,21 +7,94 @@ const setStatus = (elementId, message, type = '') => {
   node.className = `status ${type}`.trim();
 };
 
+const escapeHtml = (value = '') =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const renderMarkdown = (text = '') => {
+  const safeText = String(text ?? '');
+  const normalized = safeText
+    .replace(/\r/g, '')
+    .replace(/\n\n+/g, '\n\n');
+
+  const blocks = normalized.split(/\n\n+/).map((block) => block.trim()).filter(Boolean);
+
+  const renderInline = (chunk) =>
+    escapeHtml(chunk)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+
+  return blocks
+    .map((block) => {
+      if (block.startsWith('```')) {
+        const code = block.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim();
+        return `<pre><code>${escapeHtml(code)}</code></pre>`;
+      }
+
+      if (/^[-*] /.test(block)) {
+        const items = block
+          .split('\n')
+          .map((line) => line.replace(/^[-*] /, '').trim())
+          .filter(Boolean)
+          .map((line) => `<li>${renderInline(line)}</li>`)
+          .join('');
+        return `<ul>${items}</ul>`;
+      }
+
+      const paragraphs = block
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => `<p>${renderInline(line)}</p>`)
+        .join('');
+
+      return paragraphs;
+    })
+    .join('');
+};
+
+const showChatView = () => {
+  const home = document.getElementById('home-view');
+  const chat = document.getElementById('chat-view');
+  if (home) home.style.display = 'none';
+  if (chat) chat.classList.add('visible');
+};
+
+const showHomeView = () => {
+  const home = document.getElementById('home-view');
+  const chat = document.getElementById('chat-view');
+  if (home) home.style.display = 'flex';
+  if (chat) chat.classList.remove('visible');
+};
+
 const addChatMessage = (role, text) => {
   const output = document.getElementById('chat-output');
+  if (!output) return;
+
   const entry = document.createElement('div');
   entry.className = `message ${role}`;
-  entry.textContent = text;
+  entry.innerHTML = `<div class="message-content">${renderMarkdown(text)}</div>`;
   output.appendChild(entry);
   output.scrollTop = output.scrollHeight;
 };
 
 const renderHistory = (history) => {
   const output = document.getElementById('chat-output');
+  if (!output) return;
+
   output.innerHTML = '';
   history.forEach((entry) => {
     addChatMessage(entry.role, entry.content);
   });
+  if ((history || []).length > 0) {
+    showChatView();
+  }
 };
 
 const fetchJson = async (url, options = {}) => {
@@ -56,20 +129,43 @@ const clearHistory = async () => {
   }
 };
 
+document.getElementById('new-chat').addEventListener('click', () => {
+  showHomeView();
+  const input = document.getElementById('chat-input');
+  if (input) input.focus();
+});
+
+document.getElementById('open-home').addEventListener('click', () => {
+  showHomeView();
+});
+
 document.getElementById('clear-history').addEventListener('click', async () => {
   await clearHistory();
+});
+
+document.querySelectorAll('[data-prompt]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    input.value = button.dataset.prompt || '';
+    input.focus();
+    showChatView();
+  });
 });
 
 document.getElementById('chat-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const input = document.getElementById('chat-input');
   const message = input.value.trim();
+
   if (!message) {
     setStatus('chat-status', 'Please enter a message.', 'error');
     return;
   }
 
+  showChatView();
   setStatus('chat-status', 'Thinking...', 'success');
+
   try {
     const payload = await fetchJson(`/api/chat?session_id=${encodeURIComponent(state.sessionId)}`, {
       method: 'POST',
@@ -200,4 +296,5 @@ document.getElementById('load-reports').addEventListener('click', async () => {
   }
 });
 
+showHomeView();
 loadHistory();

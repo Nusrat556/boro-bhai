@@ -4,74 +4,145 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BORO BHAI</title>
+    <meta name="description" content="BORO BHAI is a local AI assistant for research, job analysis, skill gap checks, and document understanding." />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Local AI Agent</p>
-          <h1>BORO BHAI</h1>
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">B</div>
+          <div>
+            <div class="brand-name">BORO BHAI</div>
+            <div class="brand-subtitle">Local AI workspace</div>
+          </div>
         </div>
-        <button id="clear-history" class="secondary-button">Clear history</button>
-      </header>
 
-      <main class="layout">
-        <section class="panel chat-panel">
-          <h2>Chat</h2>
-          <div id="chat-output" class="chat-output" aria-live="polite"></div>
-          <form id="chat-form" class="chat-form">
-            <input id="chat-input" type="text" placeholder="Ask BORO BHAI something..." autocomplete="off" />
-            <button type="submit">Send</button>
-          </form>
+        <button id="new-chat" class="primary-action" type="button">New Chat</button>
+
+        <div class="sidebar-section">
+          <div class="section-label">Conversation</div>
+          <div id="conversation-list" class="conversation-list">
+            <button class="conversation-item active" type="button">Current session</button>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="section-label">Quick actions</div>
+          <div class="shortcut-grid">
+            <button class="tool-chip" type="button" data-prompt="Research the latest AI agent trends">Research</button>
+            <button class="tool-chip" type="button" data-prompt="Analyze this job description and compare it to my skills">Analyze Job</button>
+            <button class="tool-chip" type="button" data-prompt="Check my skills against a product manager role">Skill Gap</button>
+            <button class="tool-chip" type="button" data-prompt="Upload a document and summarize it">Upload Document</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow">AI assistant</div>
+            <h1>Workspace</h1>
+          </div>
+          <div class="top-actions">
+            <button id="open-home" type="button" class="secondary-button">Home</button>
+            <button id="clear-history" type="button" class="ghost-button">Clear history</button>
+          </div>
+        </header>
+
+        <section id="home-view" class="home-panel panel">
+          <div class="home-hero">
+            <div class="hero-badge">BORO BHAI</div>
+            <h2>Think clearly. Research quickly.</h2>
+            <p>Ask for current information, analyze a role, compare skill gaps, or upload a document for local understanding.</p>
+          </div>
+
+          <div class="composer-shell">
+            <form id="chat-form" class="composer-form">
+              <textarea id="chat-input" rows="1" placeholder="Ask BORO BHAI something..." autocomplete="off"></textarea>
+              <div class="composer-actions">
+                <div class="shortcut-row">
+                  <button type="button" class="shortcut-button" data-prompt="Research the latest AI agent trends">Research</button>
+                  <button type="button" class="shortcut-button" data-prompt="Analyze this job description and compare it to my skills">Analyze Job</button>
+                  <button type="button" class="shortcut-button" data-prompt="Check my skills against a software engineering role">Skill Gap</button>
+                  <button type="button" class="shortcut-button" data-prompt="Summarize the uploaded document">Upload Document</button>
+                </div>
+                <button type="submit" class="submit-button">Send</button>
+              </div>
+            </form>
+          </div>
+
           <div id="chat-status" class="status" aria-live="polite"></div>
         </section>
 
-        <aside class="sidebar">
-          <section class="panel">
-            <h2>Research</h2>
-            <form id="research-form" class="stack-form">
-              <input id="research-query" type="text" placeholder="Research topic" />
-              <button type="submit">Run research</button>
+        <section id="chat-view" class="chat-panel panel" aria-live="polite">
+          <div class="chat-header">
+            <div class="chat-badge"><span class="live-dot"></span> Live conversation</div>
+          </div>
+          <div id="chat-output" class="chat-output"></div>
+        </section>
+
+        <div class="workspace-grid">
+          <section class="mini-panel panel" aria-label="Research workspace">
+            <div class="mini-panel-header">
+              <h3>Research</h3>
+            </div>
+            <form id="research-form" class="compact-form">
+              <input id="research-query" type="text" placeholder="Search for current information" />
+              <button type="submit" class="secondary-button">Run research</button>
             </form>
             <div id="research-output" class="result-box"></div>
           </section>
 
-          <section class="panel">
-            <h2>Document upload</h2>
-            <form id="upload-form" class="stack-form">
+          <section class="mini-panel panel" aria-label="Upload workspace">
+            <div class="mini-panel-header">
+              <h3>Upload</h3>
+            </div>
+            <form id="upload-form" class="compact-form">
+              <label class="dropzone" for="upload-file">
+                <span>Drop a file here</span>
+                <small>.txt, .csv, .pdf</small>
+              </label>
               <input id="upload-file" type="file" accept=".txt,.csv,.pdf" />
-              <button type="submit">Upload</button>
+              <button type="submit" class="secondary-button">Upload</button>
             </form>
             <div id="upload-output" class="result-box"></div>
           </section>
+        </div>
 
-          <section class="panel">
-            <h2>Career analysis</h2>
-            <form id="job-form" class="stack-form">
-              <textarea id="job-text" rows="4" placeholder="Paste a job description..."></textarea>
+        <div class="workspace-grid">
+          <section class="mini-panel panel" aria-label="Career analysis workspace">
+            <div class="mini-panel-header">
+              <h3>Career analysis</h3>
+            </div>
+            <form id="job-form" class="compact-form">
+              <textarea id="job-text" rows="4" placeholder="Paste the job description..."></textarea>
               <input id="user-skills" type="text" placeholder="Your skills (comma separated)" />
-              <button type="submit">Analyze job</button>
+              <button type="submit" class="secondary-button">Analyze</button>
             </form>
             <div id="job-output" class="result-box"></div>
           </section>
 
-          <section class="panel">
-            <h2>Skill gap</h2>
-            <form id="skill-gap-form" class="stack-form">
+          <section class="mini-panel panel" aria-label="Skill gap workspace">
+            <div class="mini-panel-header">
+              <h3>Skill gap</h3>
+            </div>
+            <form id="skill-gap-form" class="compact-form">
               <textarea id="skill-gap-text" rows="4" placeholder="Paste the role description..."></textarea>
               <input id="skill-gap-skills" type="text" placeholder="Current skills (comma separated)" />
-              <button type="submit">Check gaps</button>
+              <button type="submit" class="secondary-button">Check gaps</button>
             </form>
             <div id="skill-gap-output" class="result-box"></div>
           </section>
+        </div>
 
-          <section class="panel">
-            <h2>Reports</h2>
-            <button id="load-reports" class="secondary-button full-width">Load reports</button>
-            <div id="reports-output" class="result-box"></div>
-          </section>
-        </aside>
+        <section class="report-panel panel" aria-label="Reports workspace">
+          <div class="mini-panel-header">
+            <h3>Reports</h3>
+          </div>
+          <button id="load-reports" type="button" class="secondary-button">Load reports</button>
+          <div id="reports-output" class="result-box"></div>
+        </section>
       </main>
     </div>
 
