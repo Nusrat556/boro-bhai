@@ -10,64 +10,64 @@
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <div class="brand-block">
+        <div class="brand-row">
           <div class="brand-mark">B</div>
-          <div>
+          <div class="brand-copy">
             <div class="brand-name">BORO BHAI</div>
-            <div class="brand-subtitle">Local AI workspace</div>
+            <div class="brand-tag">AI workspace</div>
           </div>
         </div>
 
-        <button id="new-chat" class="primary-action" type="button">New Chat</button>
+        <button id="new-chat" class="new-chat-button" type="button">+ New Chat</button>
 
         <div class="sidebar-section">
-          <div class="section-label">Conversation</div>
+          <div class="section-label">Recent</div>
           <div id="conversation-list" class="conversation-list">
-            <button class="conversation-item active" type="button">Current session</button>
+            <button class="conversation-item active" type="button">Current conversation</button>
           </div>
         </div>
 
         <div class="sidebar-section">
-          <div class="section-label">Quick actions</div>
-          <div class="shortcut-grid">
-            <button class="tool-chip" type="button" data-prompt="Research the latest AI agent trends">Research</button>
-            <button class="tool-chip" type="button" data-prompt="Analyze this job description and compare it to my skills">Analyze Job</button>
-            <button class="tool-chip" type="button" data-prompt="Check my skills against a product manager role">Skill Gap</button>
-            <button class="tool-chip" type="button" data-prompt="Upload a document and summarize it">Upload Document</button>
+          <div class="section-label">Quick tools</div>
+          <div class="tool-grid">
+            <button class="tool-button" type="button" data-prompt="Research the latest AI agent trends">Research</button>
+            <button class="tool-button" type="button" data-prompt="Analyze this job description and compare it to my skills">Analyze Job</button>
+            <button class="tool-button" type="button" data-prompt="Check my skills against a product manager role">Skill Gap</button>
+            <button class="tool-button" type="button" data-prompt="Upload a document and summarize it">Upload</button>
           </div>
         </div>
       </aside>
 
       <main class="workspace">
         <header class="topbar">
-          <div>
-            <div class="eyebrow">AI assistant</div>
-            <h1>Workspace</h1>
-          </div>
+          <div class="brand-mini">BORO BHAI</div>
           <div class="top-actions">
-            <button id="open-home" type="button" class="secondary-button">Home</button>
-            <button id="clear-history" type="button" class="ghost-button">Clear history</button>
+            <button id="open-home" class="icon-button" type="button">Home</button>
+            <button id="clear-history" class="icon-button muted" type="button">Clear</button>
           </div>
         </header>
 
-        <section id="home-view" class="home-panel panel">
-          <div class="home-hero">
-            <div class="hero-badge">BORO BHAI</div>
-            <h2>Think clearly. Research quickly.</h2>
-            <p>Ask for current information, analyze a role, compare skill gaps, or upload a document for local understanding.</p>
+        <section id="home-view" class="home-view">
+          <div class="hero-block">
+            <div class="eyebrow">Your personal AI agent</div>
+            <h1>BORO BHAI</h1>
+            <p>Ask anything, investigate deeply, and turn raw context into useful next steps.</p>
           </div>
 
           <div class="composer-shell">
-            <form id="chat-form" class="composer-form">
-              <textarea id="chat-input" rows="1" placeholder="Ask BORO BHAI something..." autocomplete="off"></textarea>
-              <div class="composer-actions">
-                <div class="shortcut-row">
-                  <button type="button" class="shortcut-button" data-prompt="Research the latest AI agent trends">Research</button>
-                  <button type="button" class="shortcut-button" data-prompt="Analyze this job description and compare it to my skills">Analyze Job</button>
-                  <button type="button" class="shortcut-button" data-prompt="Check my skills against a software engineering role">Skill Gap</button>
-                  <button type="button" class="shortcut-button" data-prompt="Summarize the uploaded document">Upload Document</button>
+            <form id="chat-form" class="chat-form">
+              <div class="composer-field">
+                <textarea id="chat-input" rows="1" placeholder="Message BORO BHAI..." autocomplete="off"></textarea>
+                <button type="submit" class="send-button" aria-label="Send message">↑</button>
+              </div>
+
+              <div class="composer-toolbar">
+                <div class="quick-actions">
+                  <button type="button" class="mini-action" data-prompt="Research the latest AI agent trends">Research</button>
+                  <button type="button" class="mini-action" data-prompt="Analyze this job description and compare it to my skills">Analyze Job</button>
+                  <button type="button" class="mini-action" data-prompt="Check my skills against a software engineering role">Skill Gap</button>
+                  <button type="button" class="mini-action" data-prompt="Summarize the uploaded document">Upload</button>
                 </div>
-                <button type="submit" class="submit-button">Send</button>
               </div>
             </form>
           </div>
@@ -75,72 +75,79 @@
           <div id="chat-status" class="status" aria-live="polite"></div>
         </section>
 
-        <section id="chat-view" class="chat-panel panel" aria-live="polite">
-          <div class="chat-header">
-            <div class="chat-badge"><span class="live-dot"></span> Live conversation</div>
+        <section id="chat-view" class="chat-view" aria-live="polite">
+          <div class="chat-window">
+            <div class="chat-header-row">
+              <div class="chat-indicator"><span></span> Live chat</div>
+            </div>
+            <div id="chat-output" class="chat-output"></div>
           </div>
-          <div id="chat-output" class="chat-output"></div>
         </section>
 
-        <div class="workspace-grid">
-          <section class="mini-panel panel" aria-label="Research workspace">
-            <div class="mini-panel-header">
-              <h3>Research</h3>
+        <div class="tool-panel-grid">
+          <section class="utility-panel" aria-label="Research tool">
+            <div class="utility-header">
+              <span class="utility-label">Research</span>
+              <span class="utility-dot"></span>
             </div>
             <form id="research-form" class="compact-form">
               <input id="research-query" type="text" placeholder="Search for current information" />
-              <button type="submit" class="secondary-button">Run research</button>
+              <button type="submit" class="soft-button">Run</button>
             </form>
             <div id="research-output" class="result-box"></div>
           </section>
 
-          <section class="mini-panel panel" aria-label="Upload workspace">
-            <div class="mini-panel-header">
-              <h3>Upload</h3>
+          <section class="utility-panel" aria-label="Upload tool">
+            <div class="utility-header">
+              <span class="utility-label">Upload</span>
+              <span class="utility-dot"></span>
             </div>
             <form id="upload-form" class="compact-form">
               <label class="dropzone" for="upload-file">
                 <span>Drop a file here</span>
-                <small>.txt, .csv, .pdf</small>
+                <small>.txt .csv .pdf</small>
               </label>
               <input id="upload-file" type="file" accept=".txt,.csv,.pdf" />
-              <button type="submit" class="secondary-button">Upload</button>
+              <button type="submit" class="soft-button">Upload</button>
             </form>
             <div id="upload-output" class="result-box"></div>
           </section>
         </div>
 
-        <div class="workspace-grid">
-          <section class="mini-panel panel" aria-label="Career analysis workspace">
-            <div class="mini-panel-header">
-              <h3>Career analysis</h3>
+        <div class="tool-panel-grid">
+          <section class="utility-panel" aria-label="Career analysis tool">
+            <div class="utility-header">
+              <span class="utility-label">Analyze job</span>
+              <span class="utility-dot"></span>
             </div>
             <form id="job-form" class="compact-form">
               <textarea id="job-text" rows="4" placeholder="Paste the job description..."></textarea>
               <input id="user-skills" type="text" placeholder="Your skills (comma separated)" />
-              <button type="submit" class="secondary-button">Analyze</button>
+              <button type="submit" class="soft-button">Analyze</button>
             </form>
             <div id="job-output" class="result-box"></div>
           </section>
 
-          <section class="mini-panel panel" aria-label="Skill gap workspace">
-            <div class="mini-panel-header">
-              <h3>Skill gap</h3>
+          <section class="utility-panel" aria-label="Skill gap tool">
+            <div class="utility-header">
+              <span class="utility-label">Skill gap</span>
+              <span class="utility-dot"></span>
             </div>
             <form id="skill-gap-form" class="compact-form">
               <textarea id="skill-gap-text" rows="4" placeholder="Paste the role description..."></textarea>
               <input id="skill-gap-skills" type="text" placeholder="Current skills (comma separated)" />
-              <button type="submit" class="secondary-button">Check gaps</button>
+              <button type="submit" class="soft-button">Check</button>
             </form>
             <div id="skill-gap-output" class="result-box"></div>
           </section>
         </div>
 
-        <section class="report-panel panel" aria-label="Reports workspace">
-          <div class="mini-panel-header">
-            <h3>Reports</h3>
+        <section class="report-panel utility-panel" aria-label="Reports tool">
+          <div class="utility-header">
+            <span class="utility-label">Reports</span>
+            <span class="utility-dot"></span>
           </div>
-          <button id="load-reports" type="button" class="secondary-button">Load reports</button>
+          <button id="load-reports" class="soft-button full-width" type="button">Load reports</button>
           <div id="reports-output" class="result-box"></div>
         </section>
       </main>

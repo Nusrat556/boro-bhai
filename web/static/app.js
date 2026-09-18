@@ -129,10 +129,22 @@ const clearHistory = async () => {
   }
 };
 
+const autoResize = () => {
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  input.style.height = 'auto';
+  input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+};
+
+document.getElementById('chat-input').addEventListener('input', autoResize);
+
 document.getElementById('new-chat').addEventListener('click', () => {
   showHomeView();
   const input = document.getElementById('chat-input');
-  if (input) input.focus();
+  if (input) {
+    input.focus();
+    autoResize();
+  }
 });
 
 document.getElementById('open-home').addEventListener('click', () => {
@@ -141,6 +153,7 @@ document.getElementById('open-home').addEventListener('click', () => {
 
 document.getElementById('clear-history').addEventListener('click', async () => {
   await clearHistory();
+  showHomeView();
 });
 
 document.querySelectorAll('[data-prompt]').forEach((button) => {
@@ -149,7 +162,8 @@ document.querySelectorAll('[data-prompt]').forEach((button) => {
     if (!input) return;
     input.value = button.dataset.prompt || '';
     input.focus();
-    showChatView();
+    autoResize();
+    showHomeView();
   });
 });
 
@@ -164,7 +178,7 @@ document.getElementById('chat-form').addEventListener('submit', async (event) =>
   }
 
   showChatView();
-  setStatus('chat-status', 'Thinking...', 'success');
+  setStatus('chat-status', '◌ Thinking...', 'busy');
 
   try {
     const payload = await fetchJson(`/api/chat?session_id=${encodeURIComponent(state.sessionId)}`, {
@@ -173,8 +187,9 @@ document.getElementById('chat-form').addEventListener('submit', async (event) =>
     });
     const data = payload.data || {};
     renderHistory(data.history || []);
-    setStatus('chat-status', 'Reply ready.', 'success');
+    setStatus('chat-status', '✓ Reply ready.', 'success');
     input.value = '';
+    autoResize();
   } catch (error) {
     setStatus('chat-status', error.message, 'error');
   }
@@ -189,7 +204,8 @@ document.getElementById('research-form').addEventListener('submit', async (event
   }
 
   try {
-    document.getElementById('research-output').textContent = 'Researching...';
+    setStatus('chat-status', '◌ Searching the web...', 'busy');
+    document.getElementById('research-output').textContent = 'Searching the web...';
     const payload = await fetchJson('/api/research', {
       method: 'POST',
       body: JSON.stringify({ query, max_results: 5 }),
@@ -197,8 +213,10 @@ document.getElementById('research-form').addEventListener('submit', async (event
     const data = payload.data || {};
     const sources = (data.sources || []).map((item) => `- ${item.title}: ${item.url}`).join('\n');
     document.getElementById('research-output').textContent = `${data.answer}\n\nSources:\n${sources || 'No sources.'}`;
+    setStatus('chat-status', `✓ Research completed · ${Math.max((data.sources || []).length, 0)} sources`, 'success');
   } catch (error) {
     document.getElementById('research-output').textContent = error.message;
+    setStatus('chat-status', error.message, 'error');
   }
 });
 
@@ -212,6 +230,7 @@ document.getElementById('upload-form').addEventListener('submit', async (event) 
   }
 
   try {
+    setStatus('chat-status', '◌ Uploading file...', 'busy');
     document.getElementById('upload-output').textContent = 'Uploading...';
     const formData = new FormData();
     formData.append('file', file);
@@ -224,8 +243,10 @@ document.getElementById('upload-form').addEventListener('submit', async (event) 
       throw new Error(payload.error || 'Upload failed.');
     }
     document.getElementById('upload-output').textContent = `Uploaded ${payload.data.filename} successfully.`;
+    setStatus('chat-status', '✓ File uploaded successfully.', 'success');
   } catch (error) {
     document.getElementById('upload-output').textContent = error.message;
+    setStatus('chat-status', error.message, 'error');
   }
 });
 
@@ -243,6 +264,7 @@ document.getElementById('job-form').addEventListener('submit', async (event) => 
     .filter(Boolean);
 
   try {
+    setStatus('chat-status', '◌ Analyzing job fit...', 'busy');
     document.getElementById('job-output').textContent = 'Analyzing job description...';
     const payload = await fetchJson('/api/job-analysis', {
       method: 'POST',
@@ -250,8 +272,10 @@ document.getElementById('job-form').addEventListener('submit', async (event) => 
     });
     const data = payload.data || {};
     document.getElementById('job-output').textContent = JSON.stringify(data.analysis, null, 2);
+    setStatus('chat-status', '✓ Job analysis complete.', 'success');
   } catch (error) {
     document.getElementById('job-output').textContent = error.message;
+    setStatus('chat-status', error.message, 'error');
   }
 });
 
@@ -269,6 +293,7 @@ document.getElementById('skill-gap-form').addEventListener('submit', async (even
     .filter(Boolean);
 
   try {
+    setStatus('chat-status', '◌ Checking skill gaps...', 'busy');
     document.getElementById('skill-gap-output').textContent = 'Checking skill gaps...';
     const payload = await fetchJson('/api/skill-gap', {
       method: 'POST',
@@ -276,25 +301,32 @@ document.getElementById('skill-gap-form').addEventListener('submit', async (even
     });
     const data = payload.data || {};
     document.getElementById('skill-gap-output').textContent = JSON.stringify(data.analysis, null, 2);
+    setStatus('chat-status', '✓ Skill gap review complete.', 'success');
   } catch (error) {
     document.getElementById('skill-gap-output').textContent = error.message;
+    setStatus('chat-status', error.message, 'error');
   }
 });
 
 document.getElementById('load-reports').addEventListener('click', async () => {
   try {
+    setStatus('chat-status', '◌ Loading reports...', 'busy');
     const payload = await fetchJson('/api/reports');
     const reports = payload.reports || [];
     if (!reports.length) {
       document.getElementById('reports-output').textContent = 'No reports generated yet.';
+      setStatus('chat-status', '✓ No reports found.', 'success');
       return;
     }
     const items = reports.map((report) => `- ${report.name}`).join('\n');
     document.getElementById('reports-output').textContent = items;
+    setStatus('chat-status', `✓ Reports loaded · ${reports.length} items`, 'success');
   } catch (error) {
     document.getElementById('reports-output').textContent = error.message;
+    setStatus('chat-status', error.message, 'error');
   }
 });
 
 showHomeView();
+autoResize();
 loadHistory();
