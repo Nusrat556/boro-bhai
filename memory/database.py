@@ -24,31 +24,47 @@ def initialize_db(db_path: str = DEFAULT_DB_PATH) -> sqlite3.Connection:
         """
         CREATE TABLE IF NOT EXISTS interactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL DEFAULT 'default',
             user_input TEXT NOT NULL,
             agent_response TEXT NOT NULL,
             timestamp TEXT NOT NULL
         )
         """
     )
+
+    columns = connection.execute("PRAGMA table_info(interactions)").fetchall()
+    has_session_id = any(column[1] == "session_id" for column in columns)
+    if not has_session_id:
+        connection.execute("ALTER TABLE interactions ADD COLUMN session_id TEXT NOT NULL DEFAULT 'default'")
+
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_interactions_session_id ON interactions (session_id)"
+    )
     connection.commit()
     return connection
+
+
+def _normalize_session_id(session_id: str | None) -> str:
+    value = (session_id or "default").strip()
+    return value or "default"
 
 
 def _normalize_text(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "")).strip().lower()
 
 
-def save_memory(user_input: str, agent_response: str, db_path: str = DEFAULT_DB_PATH) -> int:
+def save_memory(user_input: str, agent_response: str, db_path: str = DEFAULT_DB_PATH, session_id: str | None = None) -> int:
     """Persist a user input and agent response in SQLite."""
     if not user_input or not agent_response:
         raise ValueError("Both user_input and agent_response are required.")
 
+    normalized_session_id = _normalize_session_id(session_id)
     connection = initialize_db(db_path)
     timestamp = datetime.now(timezone.utc).isoformat()
     try:
         cursor = connection.execute(
-            "INSERT INTO interactions (user_input, agent_response, timestamp) VALUES (?, ?, ?)",
-            (user_input, agent_response, timestamp),
+            "INSERT INTO interactions (session_id, user_input, agent_response, timestamp) VALUES (?, ?, ?, ?)",
+            (normalized_session_id, user_input, agent_response, timestamp),
         )
         connection.commit()
         return int(cursor.lastrowid)
@@ -56,17 +72,24 @@ def save_memory(user_input: str, agent_response: str, db_path: str = DEFAULT_DB_
         connection.close()
 
 
-def get_recent_memories(limit: int = 5, db_path: str = DEFAULT_DB_PATH):
+def get_recent_memories(limit: int = 5, db_path: str = DEFAULT_DB_PATH, session_id: str | None = None):
     """Return recent interactions in reverse chronological order."""
     if limit <= 0:
         return []
 
+    session_key = _normalize_session_id(session_id)
     connection = initialize_db(db_path)
     try:
-        rows = connection.execute(
-            "SELECT user_input, agent_response, timestamp FROM interactions ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if session_id is not None:
+            rows = connection.execute(
+                "SELECT user_input, agent_response, timestamp FROM interactions WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+                (session_key, limit),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                "SELECT user_input, agent_response, timestamp FROM interactions ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
     finally:
         connection.close()
 
@@ -82,12 +105,12 @@ def get_recent_memories(limit: int = 5, db_path: str = DEFAULT_DB_PATH):
     return memories
 
 
-def get_relevant_context(query: str, limit: int = 5, db_path: str = DEFAULT_DB_PATH):
+def get_relevant_context(query: str, limit: int = 5, db_path: str = DEFAULT_DB_PATH, session_id: str | None = None):
     """Return recent memories that are most relevant to the current task."""
     if not query or not query.strip() or limit <= 0:
         return []
 
-    memories = get_recent_memories(limit=max(limit, 5), db_path=db_path)
+    memories = get_recent_memories(limit=max(limit, 5), db_path=db_path, session_id=session_id)
     if not memories:
         return []
 

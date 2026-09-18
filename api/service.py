@@ -89,7 +89,8 @@ def validate_job_input(payload: dict[str, Any]) -> str:
 
 def handle_chat(payload: dict[str, Any], session_id: str | None = None) -> dict[str, Any]:
     message = validate_message(payload)
-    response = run_agent(message)
+    normalized_session_id = _session_id(session_id)
+    response = run_agent(message, session_id=normalized_session_id)
     add_history_entry(session_id, "user", message)
     add_history_entry(session_id, "assistant", response)
     return {"success": True, "response": response, "history": get_history(session_id)}

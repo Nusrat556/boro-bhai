@@ -109,12 +109,12 @@ def route_task(task: str) -> str:
     return "llm"
 
 
-def _build_memory_context(task: str = "", db_path: str = DEFAULT_DB_PATH) -> str:
+def _build_memory_context(task: str = "", db_path: str = DEFAULT_DB_PATH, session_id: str | None = None) -> str:
     sanitized_task = _sanitize_task(task) if task else ""
     if sanitized_task:
-        recent_memories = get_relevant_context(sanitized_task, limit=3, db_path=db_path)
+        recent_memories = get_relevant_context(sanitized_task, limit=3, db_path=db_path, session_id=session_id)
     else:
-        recent_memories = get_recent_memories(limit=3, db_path=db_path)
+        recent_memories = get_recent_memories(limit=3, db_path=db_path, session_id=session_id)
 
     if not recent_memories:
         return ""
@@ -262,11 +262,11 @@ def _execute_registered_tool(route: str, task: str):
     raise KeyError(f"Tool '{route}' is not a registered executable tool.")
 
 
-def run_agent(task: str) -> str:
+def run_agent(task: str, session_id: str | None = None, db_path: str = DEFAULT_DB_PATH) -> str:
     """Run a minimal agent loop with routing and safe tool usage."""
     cleaned_task = _sanitize_task(task)
 
-    memory_context = _build_memory_context(cleaned_task)
+    memory_context = _build_memory_context(cleaned_task, db_path=db_path, session_id=session_id)
     route = route_task(cleaned_task)
 
     if route == "calculator":
@@ -275,13 +275,13 @@ def run_agent(task: str) -> str:
             tool_result = ToolResult(True, "calculator", result=result)
             final_response = f"[Agent]\n[Tool: Calculator]\nResult: {result}\n[Final Response]\n{result}"
             logging.info("Calculator used for task: %s", task)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
         except (KeyError, ValueError) as exc:
             tool_result = ToolResult(False, "calculator", error=str(exc))
             final_response = f"[Agent]\n[Tool: Calculator]\nError: {tool_result.error}\n[Final Response]\nI could not evaluate that arithmetic expression safely."
             logging.error("Calculator error: %s", exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
     if route == "web_search":
@@ -292,13 +292,13 @@ def run_agent(task: str) -> str:
             else:
                 summary = result.error or "I could not find current information for that query."
             final_response = f"[Agent]\n[Tool: Web Search]\n[Final Response]\n{summary}"
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             logging.info("Web search used for task: %s", task)
             return final_response
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: Web Search]\nError: {exc}\n[Final Response]\nI could not retrieve current information safely."
             logging.error("Web search error: %s", exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
     if route == "planner":
@@ -310,13 +310,13 @@ def run_agent(task: str) -> str:
                 final_response = f"[Agent]\n[Tool: Planner]\n[Final Response]\nPlan created:\n{summary}"
             else:
                 final_response = f"[Agent]\n[Tool: Planner]\nError: {execution.get('error', 'Plan failed')}\n[Final Response]\nI could not create a working plan for that request."
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             logging.info("Planner used for task: %s", task)
             return final_response
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: Planner]\nError: {exc}\n[Final Response]\nI could not create a working plan for that request."
             logging.error("Planner error: %s", exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
     if route == "research_synthesis":
@@ -330,13 +330,13 @@ def run_agent(task: str) -> str:
                 final_response = f"[Agent]\n[Tool: Research Synthesis]\n[Final Response]\n{answer}\n\nSources:\n{formatted_sources}"
             else:
                 final_response = f"[Agent]\n[Tool: Research Synthesis]\nError: {result.error}\n[Final Response]\nI could not synthesize current information reliably."
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             logging.info("Research synthesis used for task: %s", task)
             return final_response
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: Research Synthesis]\nError: {exc}\n[Final Response]\nI could not synthesize current information reliably."
             logging.error("Research synthesis error: %s", exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
     if route == "rag_query":
@@ -347,13 +347,13 @@ def run_agent(task: str) -> str:
                 final_response = f"[Agent]\n[Tool: RAG Query]\n[Final Response]\n{context or 'I found relevant knowledge base entries.'}"
             else:
                 final_response = f"[Agent]\n[Tool: RAG Query]\nError: {result.error}\n[Final Response]\nI could not retrieve relevant knowledge from the local index."
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             logging.info("RAG query used for task: %s", task)
             return final_response
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: RAG Query]\nError: {exc}\n[Final Response]\nI could not retrieve relevant knowledge from the local index."
             logging.error("RAG query error: %s", exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
     if route == "career_intelligence":
@@ -365,13 +365,13 @@ def run_agent(task: str) -> str:
                 final_response = f"[Agent]\n[Tool: Career Intelligence]\n[Final Response]\n{formatted}"
             else:
                 final_response = f"[Agent]\n[Tool: Career Intelligence]\nError: {result.error}\n[Final Response]\nI could not analyze that career request."
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             logging.info("Career intelligence used for task: %s", task)
             return final_response
         except (KeyError, ValueError, TypeError) as exc:
             final_response = f"[Agent]\n[Tool: Career Intelligence]\nError: {exc}\n[Final Response]\nI could not analyze that career request."
             logging.error("Career intelligence error: %s", exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
     if route in {"text_file", "csv", "pdf"}:
@@ -389,16 +389,16 @@ def run_agent(task: str) -> str:
             else:
                 summary = _safe_llm_response(f"Summarize this PDF content in simple language.\n\n{result}", context=memory_context)
             final_response = f"[Agent]\n[Tool: {tool_name}]\n[Final Response]\n{summary}"
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             logging.info("%s used for task: %s", tool_name, task)
             return final_response
         except (FileNotFoundError, ValueError, KeyError) as exc:
             final_response = f"[Agent]\n[Tool: {tool_name}]\nError: {exc}\n[Final Response]\nI could not process that file safely."
             logging.error("Tool execution error for %s: %s", route, exc)
-            save_memory(task, final_response)
+            save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
             return final_response
 
-    answer = _safe_llm_response(task, context=memory_context)
+    answer = _safe_llm_response(cleaned_task, context=memory_context)
     final_response = f"[Agent]\n[Tool: LLM]\n[Final Response]\n{answer}"
-    save_memory(task, final_response)
+    save_memory(cleaned_task, final_response, db_path=db_path, session_id=session_id)
     return final_response

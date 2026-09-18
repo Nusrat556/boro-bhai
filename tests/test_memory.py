@@ -59,7 +59,15 @@ class MemoryTests(unittest.TestCase):
             context = _build_memory_context("What was my favorite color again?", db_path=db_path)
             self.assertIn("favorite color", context.lower())
             self.assertIn("blue", context.lower())
-
+    def test_same_session_retrieves_name_memory(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_path = os.path.join(tmp_dir, "session_memory.db")
+            connection = initialize_db(db_path)
+            connection.close()
+            save_memory("i am jonayed", "Nice to meet you, Jonayed.", db_path=db_path, session_id="session-123")
+            context = get_relevant_context("what was my name?", db_path=db_path, session_id="session-123")
+            self.assertTrue(context)
+            self.assertIn("jonayed", context[0]["user_input"].lower())
 
 if __name__ == "__main__":
     unittest.main()
